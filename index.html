@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="theme-color" content="#9c27b0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>walkify.js - demo</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/fn.js"></script>
+    <script defer src="js/walkify.js"></script>
+    <script defer src="js/routes.js"></script>
+</head>
+<body>
+    <header>
+        <nav class="nav">
+            <div class="brand">
+                walkify.js
+            </div>
+            <div class="nav-item" align="right">
+                <a href="/"> index </a>
+                <a href="/about"> about </a>
+
+                <a href="/about/foo"> about/foo </a>
+                <a href="/home/8/test/foo"> link3 </a>
+                <a href="/home/9/test/bar"> link4 </a>
+                <a href="/docs"> docs </a>
+            </div>
+        </nav>
+    </header>
+    <section>
+        <template for="index">
+            -HOMEPAGE-
+            <br>
+            hello <b class="matched">${{user}}</b> from inline template
+        </template>
+
+        <template for="about">
+            -ABOUT-
+            <br>
+            hello <b class="matched">${{user}}</b> about page from inline template
+        </template>
+        
+        <template for="homeplus">
+           <h2> matched number is <b class="matched">${{id}}</b> and matched text is <b class="matched">${{name}}</b></h2>
+        </template>
+
+        <template for="404">
+            <b>${{message}}</b>
+        </template>
+    </section>
+    <section class="main-content">
+        <div class="loader-container">
+            <div class="loader"></div>
+            <h3>Loading...</h3>
+        </div>
+        <div id="app" class="app"></div>
+    </section>
+    <footer class="footer">
+       &copy; noble dsmarts 2020
+    </footer>
+</body>
+<script>
+    
+</script>
+</html>
