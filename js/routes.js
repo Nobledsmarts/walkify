@@ -4,7 +4,7 @@ let routes = {
         name : 'index',
         matched(){
             let data = {
-                description : "a lighweight routing javascript libray for creating simple spa apps"
+                description : "a lighweight routing javascript libray for creating simple SPA apps"
             };
             fetch('views/index.html')
             .then((res) => {
@@ -104,6 +104,7 @@ let routes = {
             showLoader();
         }
     },
+
     '/docs' : {
         matched(){
             // hideLoader();
@@ -150,6 +151,6 @@ let router = new Walkify(routes);
 router.mount('.app');
 /*
 or one liner
-new Walkify(routes).mount('.app');
+let router = new Walkify(routes).mount('.app');
 
 */

@@ -29,7 +29,7 @@
             <span class="comment">
             /*
             or one liner
-            new Walkify(routes).mount('.app');
+            let router = new Walkify(routes).mount('.app');
             */
             </span>
         </div>
@@ -176,7 +176,7 @@
         </div>
     </pre>
     <h4>-mounted</h4>
-    walkify looks if and call this method if it is available after the view has being rendered. at this part the dom is ready to be manipulated.
+    walkify looks and call this method if it is available after the view has being rendered. at this part the dom is ready to be manipulated.
     <pre class="code-example">
         <div>
             '/home/{id:[0-9]+}/test/{name:[a-y]+}' : {
@@ -219,6 +219,38 @@
                     </span>
                 }
             },
+        </div>
+    </pre>
+</div>
+<hr>
+<div>
+    <h3> walkify 404 </h3>
+    to register a route for 404 pages, create a template to hold the view e.g
+    <pre class="code-example">
+        <div>
+            &lt;template for="404"&gt;
+                &#36;{{ errorMessage }}
+            &lt;/template&gt;
+        </div>
+    </pre>
+    then register it in your routes object as follows
+    <pre class="code-example">
+        <div>
+        let routes = {
+            '!' : {
+                name : '404',
+                matched(){
+                    <span class="comment">
+                        //this object (data) is ignored when this view is called from redirectTo method
+                    </span>
+                    let data = {
+                        errorMessage : 'page not found'
+                    };
+                    this.view(data);
+                    },
+                }
+            }
+        }
         </div>
     </pre>
 </div>

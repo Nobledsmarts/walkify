@@ -162,7 +162,10 @@ header{
         padding: 5px 10px;
     }
 }
-
+.error{
+    font-weight: bold;
+    color: #E91E63;
+}
 @media screen and (max-width: 400px){
     .app, .loader-container{
         margin: 150px 0% 50px !important;

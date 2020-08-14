@@ -18,15 +18,15 @@ class Walkify {
 		}
 		let links = document.getElementsByTagName('a');
 		[... links].forEach((link) => {
-			let isRouteLink = !(/www|http|https|ftp/ig.test(link.getAttribute('href')));
+			let linkHref = link.getAttribute('href');
+			linkHref = linkHref.startsWith('#') ? linkHref : '#' + linkHref;
+			let isRouteLink = !(/www|http|https|ftp/ig.test(linkHref));
 			if(link.hasAttribute('href') && isRouteLink){
 				link.addEventListener('click', (event) => {
 					event.preventDefault();
-					let linkHref = link.getAttribute('href');
-					linkHref = linkHref.startsWith('#') ? linkHref : '#' + linkHref;
 					if(location.hash != linkHref ){
 						'exist' in this.currentRoute && this.currentRoute.exist();
-						this.routeTo(link.getAttribute('href'))
+						this.routeTo(linkHref)
 					}
 				})
 			}
@@ -37,7 +37,6 @@ class Walkify {
 			this.route();
 		} else {
 			this.routeTo('/');
-			this.currentRoute = '/';
 		}
 	}
 	getHash(){
@@ -53,7 +52,7 @@ class Walkify {
 	}
 	redirectTo(url, data){
 		if(url in this.routes){
-			this.routes[url].view = this.view.bind(this, this.routes[url], { data : data, redirect : true});
+			this.routes[url].view = this.view.bind(this, this.routes[url], { data, redirect : true});
 			this.routes[url].matched.apply(this.routes[url]);
 			this.currentRoute = this.routes[url];
 		}
@@ -63,6 +62,7 @@ class Walkify {
 	}
 	mount(elem){
 		this.viewElem = document.querySelector(elem);
+		return this;
 	}
 	route(){
 		let keyArr = this.getHash().split('#');
@@ -79,17 +79,24 @@ class Walkify {
 				let keyArrObj = (Lkey.split('/'));
 				let isTheSame = this.compare(keyArr, keyArrObj);
 				if(isTheSame){
-					let newObj = this.buildObj(keyArr, keyArrObj);
-					this.routes[Lkey].view = this.view.bind(this, this.routes[Lkey]);
-					this.routes[Lkey].matched.apply(this.routes[Lkey], Object.values(newObj));
-					this.currentRoute = this.routes[Lkey];
-					return this;
+					if('matched' in this.routes[Lkey]){
+						let newObj = this.buildObj(keyArr, keyArrObj);
+						this.routes[Lkey].view = this.view.bind(this, this.routes[Lkey]);
+						this.routes[Lkey].matched.apply(this.routes[Lkey], Object.values(newObj));
+						this.currentRoute = this.routes[Lkey];
+						return this;
+					}
+					throw new Error('walkify expected hook "matched" not found!')
 				}
 			}
-			if('!' in routes){
-				this.routes['!'].view = this.view.bind(this, this.routes['!']);
-				this.routes['!'].matched.apply(this.routes['!']);
-				this.currentRoute = this.routes['!'];
+			if('!' in this.routes){
+				if('matched' in this.routes['!']){
+					this.routes['!'].view = this.view.bind(this, this.routes['!']);
+					this.routes['!'].matched.apply(this.routes['!']);
+					this.currentRoute = this.routes['!'];
+				} else {
+					throw new Error('walkify expected hook "matched" not found!')
+				}
 			}
 	    }
         return this;
@@ -213,6 +220,7 @@ class Walkify {
 	}
 	view(viewObj, data = {}, temp){
 		if(!temp  || data.redirect){
+			if(!('name' in viewObj)) throw new Error('property "name" missing in route object');
 			let templates = document.getElementsByTagName('template');
 			[... templates].forEach((template) => {
 				if(template.getAttribute('for') == viewObj.name){
@@ -239,7 +247,7 @@ class Walkify {
 					return undefined
 				}
 			}
-			});
+		});
 		this.viewElem.innerHTML = template;
 	}
 }

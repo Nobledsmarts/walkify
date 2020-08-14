@@ -41,7 +41,10 @@
         </template>
         
         <template for="homeplus">
-           <h2> matched number is <b class="matched">${{id}}</b> and matched text is <b class="matched">${{name}}</b></h2>
+           <h2>
+               matched number is <b class="matched">${{id}}</b>
+               and matched text is <b class="matched">${{name}}</b>
+            </h2>
         </template>
 
         <template for="404">
@@ -52,14 +55,16 @@
         <div class="loader-container">
             <div class="loader"></div>
             <h3>Loading...</h3>
+            <noscript>
+               <b class="error">
+                   Sorry :( this page requires javascript
+                </b>
+            </noscript>
         </div>
         <div id="app" class="app"></div>
     </section>
     <footer class="footer">
-       &copy; noble dsmarts 2020
+       &copy; Noble Desmarts 2020
     </footer>
 </body>
-<script>
-    
-</script>
 </html>
