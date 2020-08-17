@@ -3,6 +3,7 @@ let routes = {
     '/' : {
         name : 'index',
         matched(){
+            document.title = "walkifyjs - demo";
             let data = {
                 description : "a lighweight routing javascript libray for creating simple SPA apps"
             };
@@ -37,6 +38,7 @@ let routes = {
     '/about' : {
         name : 'about',
         matched(){
+            document.title = "walkifyjs - demo";
             let data = {};
             data['user'] = "Frank";
             // this.view(data);
@@ -72,6 +74,7 @@ let routes = {
     '/about/*' : {
         name : 'about',
         matched(){
+            document.title = "walkifyjs - demo";
             hideLoader();
             this.view({
                 user : "Frank"
@@ -90,6 +93,7 @@ let routes = {
     '/home/{id:[0-9]+}/test/{name:[a-y]+}' : {
         name : 'homeplus',
         matched(id, name){
+            document.title = "walkifyjs - demo";
             hideLoader();
             let data = {
                 id,
@@ -107,30 +111,42 @@ let routes = {
 
     '/docs' : {
         matched(){
+            document.title = "walkifyjs - documentation";
             // hideLoader();
             fetch('views/docs.html')
             .then((res) => {
                 //throwing an error on purpose,
                 //uncomment below line to see how it works
                 // throw new Error('');
+                if(res.status == 404){
+                    throw new Error('couldnt fetch page');
+                }
                 return res.text();
             }).then((template) => {
                 hideLoader();
+                // template = formartComment(template, 'comment');
                 //inline template is ignored when you pass second argument
                 this.view({}, template);
             }).catch((e) => {
                 let data = {
-                    message : "something went wrong"
+                    message : e || "something went wrong"
                 }
                 //redirecting to 404 view with a message
                 router.redirectTo('!', data);
             });
         },
+        mounted(){
+            let htmlHighlight = new Highlight('.html-code-example', 'html');
+            let jsHighlight = new Highlight('.js-code-example', 'js');
+            htmlHighlight.mark();
+            jsHighlight.mark();
+        }
     },
     //registering 404 route
     '!' : {
         name : '404',
         matched(){
+            document.title = "walkifyjs - 404";
             //this object is ignored when this view is called from redirectTo method
             hideLoader();
             let data = {
