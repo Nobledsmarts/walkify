@@ -124,7 +124,6 @@ let routes = {
                 return res.text();
             }).then((template) => {
                 hideLoader();
-                console.log(JSON.stringify(template));
                 // template = formartComment(template, 'comment');
                 //inline template is ignored when you pass second argument
                 this.view({}, template);
