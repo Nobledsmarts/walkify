@@ -119,7 +119,6 @@ let routes = {
                 //inline template is ignored when you pass second argument
                 this.view({}, template);
             }).catch((e) => {
-                console.log(e);
                 let data = {
                     message : "something went wrong"
                 }
