@@ -2,38 +2,37 @@
     <h3> Getting Started </h3>
     to use walkify,
     you must have a parent container to hold your views. e.g
-    <pre class="code-example">
-        <div>
-            &lt;div class="app" id="app"&gt; &lt;/div&gt;
-        </div>
-    </pre>
+<div class="html-code-example">
+<div>
+&lt;div class="app" id="app"&gt; &lt;/div&gt;
+</div>
+</div>
     the next step is to instantiate a routes Object 
-    <pre class="code-example">
-        <div>
-            let routes = {
+    <div class="js-code-example">
+<div>
+let routes = {
 
-            }
-            <span class="comment">
-            //instatiating router with routes Object as the argument;
-            </span>
-            let router = new Walkify(routes);
-            <span class="comment">
-            //mounting to the container with class 'app'
-            </span>
-            router.mount('.app');
-            <span class="comment">
-            /*
-            or router.mount('#app');
-            */
-            </span>
-            <span class="comment">
-            /*
-            or one liner
-            let router = new Walkify(routes).mount('.app');
-            */
-            </span>
-        </div>
-    </pre>
+}
+
+//instatiating router with routes Object as the argument;
+
+let router = new Walkify(routes);
+
+//mounting to the container with class 'app'
+
+router.mount('.app');
+
+/*
+* or router.mount('#app');
+*/
+
+
+/*
+* or one liner
+* let router = new Walkify(routes).mount('.app');
+*/
+</div>
+    </div>
 </div>
 <hr>
 <div>
@@ -43,106 +42,107 @@
     <br>
     <br>
     first of all create a template for your route. note the attribute 'for'. <b>(not neccessary if you fetches the template with ajax)</b>
-    <pre class="code-example">
-        <div>
-        &lt;template for="index"&gt;
-           &#36;{{ message }}
-        &lt;/template&gt;
-        </div>
-    </pre>
+<div class="html-code-example">
+<div>
+&lt;template for="index"&gt;
+    &#36;{{ message }}
+&lt;/template&gt;
+</div>
+</div>
     then add the route to routes Object 
-    <pre class="code-example">
-        <div>
-            let routes = {
-                '/' : {
-                    <span class="comment"> //the value of the atrtribute 'for' must be the name </span>
-                    name : 'index',
-                    <span class="comment">
-                        /* matched hook
-                        /* walkify calls this method when it matches a registered route
-                        */
-                    </span>
-                    matched(){
-                        let data = {
-                            message : "hello word"
-                        };
-                        <span class="comment">
-                        //render the view
-                        </span>
-                        this.view(data);
-                    },
-                    <span class="comment">
-                        /* exist hook
-                        /* walkify calls this method before switching to another route
-                        */
-                    </span>
-                    exist(){
-                        <span class="comment">
-                        //show/hide animations and other stuffs
-                        </span>
-                    }
-                },
-            } 
-        </div>
-    </pre>
+<div class="js-code-example">
+<div>
+let routes = {
+    '/' : {
+            //the value of the atrtribute 'for' must be the name 
+        name : 'index',
+        
+            /* matched hook
+            /* walkify calls this method when it matches a registered route
+            */
+        
+        matched(){
+            let data = {
+                message : "hello word"
+            };
+            
+            //render the view
+            
+            this.view(data);
+        },
+        
+            /*
+            * exist hook
+            * walkify calls this method before switching to another route
+            */
+        
+        exist(){
+            
+            //show/hide animations and other stuffs
+            
+        }
+    },
+} 
+</div>
+</div>
      an example using an ajax fetched template
      <br>
      firstly create a folder named views in you projects root, then inside it create a file '<b>index.html</b>'. then add the below text to nav-item
-     <pre class="code-example">
-        <div>
-            &#36;{{ message }}
-        </div>
-     </pre>
+<div class="html-code-example">
+<div>
+&#36;{{ message }}
+</div>
+</div>
      then add below code in your route object
-     <pre class="code-example">
-            <div>
-                let routes = {
-                    '/' : {
-                        <span class="comment"> //the value of the atrtribute 'for' must be the name </span>
-                        name : 'index',
-                        <span class="comment">
-                            /* matched hook
-                            /* walkify calls this method when it matches a registered route
-                            */
-                        </span>
-                        matched(){
-                            let data = {
-                                message : "hello word"
-                            };
-                            fetch('views/index.html')
-                            .then((res) => {
-                                <span class="comment">
-                                //throwing an error on purpose,
-                                //uncomment below line to see how it works
-                                // throw new Error('');
-                                </span>
-                                return res.text();
-                            }).then((template) => {
-                                hideLoader();
-                                <span class="comment">
-                                //inline template is ignored when you pass second argument
-                                </span>
-                                this.view(data, template);
-                            }).catch((e) => {
-                                let data = {
-                                    message : "something went wrong"
-                                }
-                                <span class="comment">
-                                /*
-                                redirecting to another route (404 route) with a message 
-                                note : this doesnt change the url, it just calls the specified route;
-                                to force full redirect, use router.routeTo(route);
-                                e.g router.routeTo('/about');
-                                */
-                                </span>
-                                <!-- router.routeTo('/about'); -->
-                                router.redirectTo('!', data);
-                            });
-                        },
-                    },
+<div class="js-code-example">
+<div>
+let routes = {
+    '/' : {
+            //the value of the atrtribute 'for' must be the name 
+        name : 'index',
+        
+            /* matched hook
+                * walkify calls this method when it matches a registered route
+            */
+        
+        matched(){
+            let data = {
+                message : "hello word"
+            };
+            fetch('views/index.html')
+            .then((res) => {
+                
+                //throwing an error on purpose,
+                //uncomment below line to see how it works
+                // throw new Error('');
+                
+                return res.text();
+            }).then((template) => {
+                hideLoader();
+                
+                //inline template is ignored when you pass second argument
+                
+                this.view(data, template);
+            }).catch((e) => {
+                let data = {
+                    message : "something went wrong"
                 }
-            </div>
-        </pre>
+                
+                /*
+                * redirecting to another route (404 route) with a message 
+                * note : this doesnt change the url, it just calls the specified  route;
+                * to force full redirect, use router.routeTo(route);
+                * e.g router.routeTo('/about');
+                */
+                
+                <!-- router.routeTo('/about'); -->
+                router.redirectTo('!', data);
+            });
+        },
+    },
+}
+</div>
+</div>
 </div>
 <hr>
 <div>
@@ -161,96 +161,92 @@
     </ul>
     <h4>-matched</h4>
     walkify always expects this method, it calls it when there is a match in your registered routes. it also accepts parameters when you register dynamic routes e.g
-    <pre class="code-example">
-        <div>
-            '/home/{id:[0-9]+}/test/{name:[a-y]+}' : {
-                name : 'homeplus',
-                matched(id, name){
-                    let data = {
-                        id,
-                        name
-                    };
-                    this.view(data);
-                },
-            },
-        </div>
-    </pre>
+<div class="js-code-example">
+<div>
+'/home/{id:[0-9]+}/test/{name:[a-y]+}' : {
+    name : 'homeplus',
+    matched(id, name){
+        let data = {
+            id,
+            name
+        };
+        this.view(data);
+    },
+},
+</div>
+</div>
     <h4>-mounted</h4>
     walkify looks and call this method if it is available after the view has being rendered. at this part the dom is ready to be manipulated.
-    <pre class="code-example">
-        <div>
-            '/home/{id:[0-9]+}/test/{name:[a-y]+}' : {
-                name : 'homeplus',
-                matched(id, name){
-                    let data = {
-                        id,
-                        name
-                    };
-                    this.view(data);
-                },
-                mounted(){
-                    <span class="comment">//Dom is Ready!</span>
-                    <span class="comment">//document.getElementById('example').innerHtml = 'test'</span>
-                }
-            },
-        </div>
-    </pre>
+<div class="js-code-example">
+<div>
+'/home/{id:[0-9]+}/test/{name:[a-y]+}' : {
+    name : 'homeplus',
+    matched(id, name){
+        let data = {
+            id,
+            name
+        };
+        this.view(data);
+    },
+    mounted(){
+        //Dom is Ready!
+        //document.getElementById('example').innerHtml = 'test'
+    }
+},
+</div>
+</div>
         <h4>-exist</h4>
     walkify looks and call this method if it is available on route change before handling the next route
 
-    <pre class="code-example">
-        <div>
-            '/home/{id:[0-9]+}/test/{name:[a-y]+}' : {
-                name : 'homeplus',
-                matched(id, name){
-                    let data = {
-                        id,
-                        name
-                    };
-                    this.view(data);
-                },
-                mounted(){
-                    <span class="comment">//Dom is Ready!</span>
-                    <span class="comment">//document.getElementById('example').innerHtml = 'test'</span>
-                },
-                exist(){
-                    <span class="comment">
-                    //this view is being removed
-                    </span>
-                }
-            },
-        </div>
-    </pre>
+<div class="js-code-example">
+<div>
+'/home/{id:[0-9]+}/test/{name:[a-y]+}' : {
+    name : 'homeplus',
+    matched(id, name){
+        let data = {
+            id,
+            name
+        };
+        this.view(data);
+    },
+    mounted(){
+        //Dom is Ready!
+        //document.getElementById('example').innerHtml = 'test'
+    },
+    exist(){
+        //this view is being removed
+    }
+},
+</div>
+</div>
 </div>
 <hr>
 <div>
     <h3> walkify 404 </h3>
     to register a route for 404 pages, create a template to hold the view e.g
-    <pre class="code-example">
-        <div>
-            &lt;template for="404"&gt;
-                &#36;{{ errorMessage }}
-            &lt;/template&gt;
-        </div>
-    </pre>
+<div class="html-code-example">
+<div>
+&lt;template for="404"&gt;
+    &#36;{{ errorMessage }}
+&lt;/template&gt;
+</div>
+</div>
     then register it in your routes object as follows
-    <pre class="code-example">
-        <div>
-        let routes = {
-            '!' : {
-                name : '404',
-                matched(){
-                    <span class="comment">
-                        //this object (data) is ignored when this view is called from redirectTo method
-                    </span>
-                    let data = {
-                        errorMessage : 'page not found'
-                    };
-                    this.view(data);
-                    },
-                }
-            }
+<div class="js-code-example">
+<div>
+let routes = {
+    '!' : {
+        name : '404',
+        matched(){
+            //this object (data) is ignored when this view is called from redirectTo method
+            let data = {
+                errorMessage : 'page not found'
+            };
+            this.view(data);
+            },
         }
-        </div>
-    </pre>
+    }
+}
+</div>
+</div>
 </div>
