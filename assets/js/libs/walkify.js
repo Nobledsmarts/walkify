@@ -6,8 +6,13 @@
 class Walkify {
 	constructor(routesObj, viewElem){
 		this.routes = routesObj;
+		this.supportedPrefix = [
+			'!', '$',  '%', '^', '*', '_', '+', '~', '-', '`', ':', '@', '#'
+		];
+		this.variableBracketsStart = '{{';
+		this.variableBracketsEnd = '}}';
+		this.variablePrefix = "\\$";
 		this.viewElem = viewElem ? this.mount(viewElem) : null;
-		this.init();
 	}
 	init(){
 		window.onload = () => {
@@ -16,21 +21,24 @@ class Walkify {
 		window.onhashchange = () => {
 			this.navigate();
 		}
+		this.setLinksHandler();
+	}
+	setLinksHandler(){
 		let links = document.getElementsByTagName('a');
 		[... links].forEach((link) => {
 			let linkHref = link.getAttribute('href');
-			linkHref = linkHref.startsWith('#') ? linkHref : '#' + linkHref;
 			let isRouteLink = !(/www|http|https|ftp/ig.test(linkHref));
 			if(link.hasAttribute('href') && isRouteLink){
 				link.addEventListener('click', (event) => {
+				linkHref = linkHref.startsWith('#') ? linkHref : '#' + linkHref;
 					event.preventDefault();
 					if(location.hash != linkHref ){
 						'exist' in this.currentRoute && this.currentRoute.exist();
-						this.routeTo(linkHref)
+						this.routeTo(linkHref);
 					}
 				})
 			}
-		})
+		});
 	}
 	navigate(){
 		if(this.getHash()){
@@ -65,6 +73,8 @@ class Walkify {
 		let attribute = viewElem[0] == '.' ? 'classname' : 'id';
 		if(! rootElem ) throw new Error('could not found element with ' + attribute + ' ' + viewElem.slice(1));
 		this.viewElem = rootElem;
+		//start listening to changes in url
+		this.init();
 		return this;
 	}
 	route(){
@@ -76,17 +86,17 @@ class Walkify {
 			this.routes[key].matched();
 			this.currentRoute = this.routes[key];
 		} else {
-			let Lkey = this.findObj(key);
-			if(key && Lkey){
+			let routeStr = this.findRoute(key);
+			if(key && routeStr){
 				let keyArr = key.split('/');
-				let keyArrObj = (Lkey.split('/'));
+				let keyArrObj = (routeStr.split('/'));
 				let isTheSame = this.compare(keyArr, keyArrObj);
 				if(isTheSame){
-					if('matched' in this.routes[Lkey]){
+					if('matched' in this.routes[routeStr]){
 						let newObj = this.buildObj(keyArr, keyArrObj);
-						this.routes[Lkey].view = this.view.bind(this, this.routes[Lkey]);
-						this.routes[Lkey].matched.apply(this.routes[Lkey], Object.values(newObj));
-						this.currentRoute = this.routes[Lkey];
+						this.routes[routeStr].view = this.view.bind(this, this.routes[routeStr]);
+						this.routes[routeStr].matched.apply(this.routes[routeStr], Object.values(newObj));
+						this.currentRoute = this.routes[routeStr];
 						return this;
 					}
 					throw new Error('walkify expected hook "matched" not found!')
@@ -104,101 +114,88 @@ class Walkify {
 	    }
         return this;
 	}
-	compare(arr1, arr2){
-		let len = arr1.length == arr2.length;
-		let p = arr2.slice(1, -1).every((el) => {
-			return el.includes('{') && el.includes('}') && !(el.includes(':'))
-		});
-	  	if(arr1.length && arr2.length){
-			if(arr2.includes('*')){
-				let str = arr2.join('/').replace('*', '');
-				let str2 = arr1.join('/');
-				if(str2.indexOf(str) != -1){
-					return true
-				}
-			} else {
+	compare(hashArr, routesArr){
+		if(hashArr.length == routesArr.length){
+			if(routesArr.indexOf('*') == -1){
 				let bool = false;
-				let b = arr2.map((el, i) => {
+				let b = routesArr.map((el, i) => {
 					if(el.includes('{') && el.includes('}')){
-					el = el.slice(1, -1);
+						el = el.slice(1, -1);
 					}
 					if(el.includes(':')){
 						bool = true;
-						let regItem = el.split(':')[1];
-						let reg = new RegExp('^' + regItem + '$');
-						return (reg.test(arr1[i]));
+						let regexString = el.split(':')[1];
+						let regex = new RegExp('^' + regexString + '$');
+						return (regex.test(hashArr[i]));
 					} else {
-						return (el == arr1[i]);
+						return (el == hashArr[i]);
 					}
 				});
+	
 				b = b.every((el) => {
 					return el == true;
 				});
-				if(!bool) return len && arr1.join('') == arr2.join('');
-				if(p) return p && len;
-				return b && len;
-			}
-		  }
-		  if(p && arr1.length == arr2.length){
-			return true;
-		};
-	  	return false;
-	}
-	findObj(urlH){
-		let routesArr = Object.keys(this.routes);
-		let hashArr = urlH.split('/');
-		let arr;
-		let key;	
-        for(let i = 0; i < routesArr.length; i++){
-			let listenArr = routesArr[i].split('/');
-			let h = [];
-			arr = [...hashArr];
-        	if(routesArr[i] == '*' || routesArr[i] == '!'){
-				continue;
-			}
-			let a = listenArr;
-			let b = a.filter((el) => {
-				return !(el.includes('{'))
-			});
-            for(let i = 0; i < arr.length; i++){
-                for(let v = 0; v < b.length; v++){
-                  if(arr[i] == b[v]){
-					   h.push(arr[i]);
-				  }
-				}
-			}
-			if(JSON.stringify(b) == JSON.stringify(h)){
-                let bool = this.compare(hashArr, listenArr);
-				if(bool){
-                    key = routesArr[i];
-				}
-			}
-			else if(this.compare(hashArr, listenArr)){
-				let bool = this.compare(hashArr, listenArr);
-				if(bool){
-					key = routesArr[i];
-				}
-				return key;
-			}
-			else{
-				if(hashArr.length == listenArr.length){
-					let p = listenArr.slice(1, -1).every((el) => {
-					if(el.includes('{') && el.includes('}') && !(el.includes(':'))){
-						key = routesArr[i];
-					}
-				});
-					return key;
-				}
-				if(b.includes('*')){
-					let k = (routesArr[i].slice(0, -1));
-					let bool = this.compare(hashArr, k.split('/'));
-					if(bool){
-						key = routesArr[i];
-					} 
-				}
-			}
+				return b;
+
+			} else {
+				// return (hashArr.join('').startsWith(routesArr.join('').slice(0, -1)));
+			}			
+		}  else {
+			return (hashArr.join('').startsWith(routesArr.join('').slice(0, -1)));
 		}
-		return key ? key : false;
+	}
+	closestRoute(routesArr, hashArr){
+		let matchCountObj = {};
+		routesArr.forEach((route) => {
+			matchCountObj[route] = {
+				path : route,
+				count : 0
+			}
+			let currentRouteArr = route.split('/');
+			for(let i = 0; i < currentRouteArr.length; i++){
+				if((!!currentRouteArr[i]) && hashArr[i] == currentRouteArr[i]){
+					matchCountObj[route]['count'] += 1;
+				} 
+			}
+		});
+		let matchCountArr = Object.keys(matchCountObj);
+		if(matchCountArr.length){
+			let Highestcount =  Math.max.apply(null, matchCountArr.map((route) => {
+				return (matchCountObj[route]['count']);
+			}));
+			let closeRoute = matchCountArr.filter((route) => {
+				return (matchCountObj[route]['count'] == Highestcount);
+			})[0];
+			let closeRouteArr = closeRoute.split('/');
+			if(closeRoute[0].indexOf('*') == -1){
+				// let passed = closeRouteArr.length;
+				if(closeRouteArr.length == Highestcount) return closeRoute;
+			}
+			if(closeRoute.indexOf('*') != -1){
+				let astIndex = closeRouteArr.lastIndexOf('*');
+				let slicedHash = hashArr.slice(0, astIndex);
+				if(closeRouteArr.slice(0, -1).join('/') == slicedHash.join('/')) return closeRoute
+			}
+			if(/{(.+?):(.+?)}/.test(closeRoute)){
+				return closeRoute;
+			}	
+		}
+	}
+	findRoute(urlHash){
+		let routes = this.routes;
+		let hashArr = urlHash.split('/');
+		let routesArr = Object.keys(routes);
+		let routesWithSameLength = routesArr.filter((route) => {
+			return route.split('/').length == hashArr.length;
+		});
+		let routesWithAsteriks = routesArr.filter((route) => {
+			return route.endsWith('*');
+		});
+		if( routesWithSameLength.length ){
+			return this.closestRoute(routesWithSameLength, hashArr);
+		} else {
+			return this.closestRoute(routesWithAsteriks, hashArr);
+		}
 	}
 	buildObj(arr1, arr2){
 		let obj = {};
@@ -221,36 +218,81 @@ class Walkify {
 		});
 		return (obj);
 	}
+	hasTemplate(templates, viewObj){
+		return templates.some((template) => {
+			return template.getAttribute('for') == viewObj.name;
+		});
+	}
 	view(viewObj, data = {}, temp){
 		if(!temp  || data.redirect){
 			if(!('name' in viewObj)) throw new Error('property "name" missing in route object');
-			let templates = document.getElementsByTagName('template');
-			[... templates].forEach((template) => {
+			let templates = [... document.getElementsByTagName('template')];
+			if( ! this.hasTemplate(templates, viewObj) ) throw new Error('template not found for current page');
+			templates.forEach((template) => {
 				if(template.getAttribute('for') == viewObj.name){
 					this.mountView(data.redirect ? data.data : data, template);
 					'mounted' in viewObj && viewObj.mounted();
+					this.setLinksHandler();
 				}
 			}, this);
 		} else {
 			this.mountView(data, temp);
 			'mounted' in viewObj && viewObj.mounted();
+			this.setLinksHandler();
 		}
 	}
 	mountView(data, template){
+		let hasNoPrefix = this.noVariablePrefix;
 		template = (typeof template != 'string') ? template.innerHTML : template;
-		template = template.replace(/\${{(.+?)}}/ig, matched => {
-			let key = matched.slice(3, -2).trim();
+		
+		let regex = '[' + (hasNoPrefix ? this.supportedPrefix.join('|') : this.variablePrefix) +']' + (hasNoPrefix ? '*' : '+') + '?' + ((this.variableBracketsStart) + '+') + '(.+?)' + ((this.variableBracketsEnd) + '+');
+
+		template = template.replace(new RegExp(regex, 'ig'), matched => {
+			let key = (matched).slice(this.variableBracketsStart.length + (hasNoPrefix ? 0 : this.variablePrefix.length - 1), -this.variableBracketsEnd.length).trim();
+			let hasCharLeft = (key.indexOf(this.variableBracketsEnd[0]) != - 1) || (key.indexOf(this.variableBracketsStart[0]) != - 1);
+			
 			if(key in data){
 				return data[key];
 			} else {
 				try {
 					return (eval(key));
 				} catch (e) {
-					console.error('property : "' + key + '" not defined');
-					return undefined
+					if(!hasCharLeft) console.error('property : "' + key + '" not defined');
+					return hasCharLeft ? matched : undefined
 				}
 			}
 		});
 		this.viewElem.innerHTML = template;
+	}
+
+	
+	//methods to resolve external library conflict
+	//changes the default '$' to the argument passed
+
+	setPrefix(variablePrefix){
+		variablePrefix = !variablePrefix ? variablePrefix : variablePrefix.trim();
+		let isSupported = this.supportedPrefix.indexOf(variablePrefix) != -1;
+
+		if(!isSupported && variablePrefix !== false ) throw new Error('prefix not supported');
+		if((variablePrefix === false) || !variablePrefix){
+			this.noVariablePrefix = true;
+		}
+		this.variablePrefix = '\\' + variablePrefix;
+	}
+	//changes the default curly braces '{{' and '}}'
+	setVariableBrackets(brackets){
+		if(this.typeof(brackets) != 'Array'){
+			throw new Error('parameter for setVariableBrackets method must be of the type Array')
+		} else if(brackets.length > 2){
+			throw new Error('array should not be greater than two');
+		} else if(this.typeof(brackets[0]) != 'String' || this.typeof(brackets[0]) != 'String'){
+			throw new Error('character types in the array must be string')
+		} else {
+			this.variableBracketsStart = brackets[0];
+			this.variableBracketsEnd = brackets[1];
+		}
+	}
+	typeof(variable){
+		return (variable).constructor.name;
 	}
 }
