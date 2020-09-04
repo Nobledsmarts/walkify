@@ -1,2 +1,2 @@
 # walkify
-improved version of my pagewalker routing libray
+docs at [url]https://walkifyjs.netlify.app[/url]
