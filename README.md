@@ -1,2 +1,2 @@
 # walkify
-docs at [url]https://walkifyjs.netlify.app[/url]
+docs at https://walkifyjs.netlify.app/#/docs
