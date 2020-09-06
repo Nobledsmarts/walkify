@@ -328,7 +328,7 @@ class Walkify {
 			let hasCharLeft = (key.indexOf(this.variableBracketsEnd[0]) != - 1) || (key.indexOf(this.variableBracketsStart[0]) != - 1);
 			if(key in data){
 				return typeof data[key] == 'object' ? JSON.stringify(data[key]) : data[key];
-			} else if((key.indexOf('[') != -1) || (key.indexOf('.') != -1)){
+			} else if((/\.|\[|\]/ig.test(key))){
 				try {
 					let expression = 'data' + '.' + key;
 					let evalExpression = eval(eval(`(expression)`));
