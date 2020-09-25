@@ -17,53 +17,140 @@ class Walkify {
 	}
 	init(){
 		window.onload = () => {
-			this.navigate();
+			this.navigate({
+				loadtype : 'onload'
+			});
         }
 		window.onhashchange = () => {
-			this.navigate();
+			this.navigate({
+				loadtype : 'hashchange'
+			});
 		}
-		this.setLinksHandler();
 	}
-	//register an event on all links. makes page tracking easy
-	setLinksHandler(){
-		let links = document.getElementsByTagName('a');
-		[... links].forEach((link) => {
+	 setMutationObserver(){
+		let body = document.querySelector('body');
+		let config = {childList : true, subtree : true};
+		let callback = (mutationList, observer) => {
+			for(let mutation of mutationList){
+				if(mutation.type == 'childList'){
+					if(mutation.target.tagName == 'A'){
+						this.setLinksHandler(mutation.target);
+					}
+					else if(mutation.addedNodes.length){
+						[... mutation.addedNodes].forEach((el) => {
+							if(el.tagName == 'A'){
+								this.setLinksHandler(el);
+							}
+						});
+					}
+				}
+			}
+		}
+		this.observer = new MutationObserver(callback);
+		this.observer.observe(body, config);
+	 }
+	
+	setLinksHandler(link){
+		let links = link ? [link] : [... document.getElementsByTagName('a')];
+		links.forEach((link) => {
 			let linkHref = link.getAttribute('href');
-			let isRouteLink = !(/www|http|https|ftp/ig.test(linkHref));
-			if(link.hasAttribute('href') && isRouteLink){
+			let isSameOrigin = null;
+			try {
+				let newUrl = new URL(linkHref);
+				isSameOrigin = newUrl.origin == location.origin;
+			} catch (e){
+				isSameOrigin = !(/^((http|https|ftp):\/\/)*(www\.)*(.+?)\.[a-y]{2,}$/ig.test(linkHref));
+			}
+			let hasDownloadAttr = link.hasAttribute('download');
+			let hasTargetAttr = link.hasAttribute('target');
+			let hasExternalRel = link.hasAttribute('rel') ? link.getAttribute('rel').toLowerCase() == 'external' : false;
+
+			let isExternalLink = hasDownloadAttr || hasTargetAttr || hasExternalRel || !isSameOrigin;
+
+			if(link.hasAttribute('href') && !isExternalLink){
 				link.addEventListener('click', (event) => {
 				linkHref = linkHref.startsWith('#') ? linkHref : '#' + linkHref;
 					event.preventDefault();
 					if(location.hash != linkHref ){
 						'exist' in this.currentRoute && this.currentRoute.exist();
-						this.previousHash = this.getHash() || '/';
 						this.routeTo(linkHref);
 					}
+				})
+			} else {
+				link.addEventListener('click', (event) => {
+					event.preventDefault();
+					if( !(/^((http|https|ftp):\/\/)(.+?)\.[a-y]{2,}$/ig.test(linkHref)) ){
+						try{
+							location.href = 'http://' + linkHref;
+						} catch(e){
+							'exist' in this.currentRoute && this.currentRoute.exist();
+							this.routeTo(linkHref);
+						}
+						return;
+					} 
+					location.href = linkHref;
 				})
 			}
 		});
 	}
-	navigate(){
+	
+	getAppHistoryObj(){
+		return sessionStorage.appHistoryObj ? JSON.parse(sessionStorage.appHistoryObj) : {
+			history : [],
+			current : 0,
+			length : 0
+		};
+	}
+	navigate(options){
 		if(this.getHash()){
-			this.route();
+			if(options.loadtype == 'hashchange'){
+				let appHistory = this.getAppHistoryObj().history;
+				appHistory.push(this.getHash());
+				sessionStorage.appHistoryObj = JSON.stringify({
+					history : appHistory,
+					current : appHistory.length - 1,
+					length : appHistory.length - 1
+				});
+			} else {
+				if(! sessionStorage.appHistoryObj ){
+					sessionStorage.appHistoryObj = JSON.stringify({
+						history : [this.getHash()],
+						current : 1,
+						length : 1
+					});
+				}
+			}
+			this.setPreviousHash();
+			this.route(options);
 		} else {
 			this.routeTo('/');
 		}
 	}
-	getHash(){
-		let urlhash = location.hash;
+	getHash(url){
+		let urlhash = url ? '#' + url.split('#')[1] : location.hash;
 	    return urlhash.slice(1) ? urlhash.slice(1) : '';
 	}
 	routeTo(url){
+		this.setPreviousHash();
 		location.hash = url;
 		return this;
 	}
-	redirectTo(url, data){
-		// data = data || {};
-		if(url in this.routes){
-			this.routes[url].view = this.view.bind(this, this.routes[url], { data, redirect : true});
-			this.routes[url].matched.apply(this.routes[url]);
-			this.currentRoute = this.routes[url];
+	setPreviousHash(){
+		let history = sessionStorage.appHistoryObj ? JSON.parse(sessionStorage.appHistoryObj).history : [];
+		if(history.length == 1){
+			this.previousHash = '';
+		} else {
+			this.previousHash = history.slice(-2)[0];
+		}
+	}
+	redirectTo(url, redirectData){
+		let [, , hashPart] = Object.values(this.getRouteObject(url));
+		if(hashPart in this.routes){
+			if(this.routes.hasOwnProperty(hashPart)){
+				this.checkNormalRoute(true, redirectData);
+			} else {
+				this.checkDynamicRoute(true, redirectData);
+			}
 		}
 	}
 	getRoutes(){
@@ -79,7 +166,10 @@ class Walkify {
 		this.viewSelector = viewElem;
 		//start listening to changes in url
 		this.init();
-		return [this, rootElem];
+		
+		//start listening to dom changes
+		this.setMutationObserver();
+		return this
 	}
 
 	extractUrlQuery(url){
@@ -98,77 +188,124 @@ class Walkify {
 		return this.previousHash;
 	}
 
-	getResponseObject(queryObject, hashPartArr){
+	getResponseObject(optionsObj){
 		let from = this.getPreviousHash();
 		return  {
-			params : queryObject,
+			params : optionsObj.queryObject,
 			url : {
-				to : hashPartArr[0],
-				from
+				to : optionsObj.hashPartArr[0],
+				from,
+				redirect : optionsObj.redirect ? optionsObj.redirect : false,
+				path : optionsObj.hashPart
 			}
 		}
 	}
-	route(){
-		let hashUrl = this.getHash();
+	currentResponseObject(){
+		let [queryObject, hashPartArr, hashPart] = Object.values(this.getRouteObject());
+		return getResponseObject({queryObject, hashPartArr, hashPart});
+	}
+	getRouteObject(url){
+		let hashUrl = url ? url.toLowerCase() : this.getHash().toLocaleLowerCase();
 		let urlHasQuery = hashUrl.indexOf('?') != -1;
 		let queryObject = this.extractUrlQuery(hashUrl);
 		let hashPartArr = hashUrl.split('#');
 		let queryIndex = hashPartArr[0].indexOf('?');
 		let hashPart = urlHasQuery ? hashPartArr[0].slice(0, queryIndex) : hashPartArr[0];
-		
-		if(this.routes.hasOwnProperty(hashPart)){
-			let foundRoutes = Object.keys(this.routes).filter((route) => {
+		return {
+			queryObject,
+			hashPartArr,
+			hashPart
+		}
+	}
+	checkNormalRoute(isRedirect, redirectData){
+		let routeObject = this.getRouteObject();
+		let hashPart = routeObject.hashPart;
+		let queryObject = routeObject.queryObject;
+		let hashPartArr = routeObject.hashPartArr;
+		let foundRoutes = this.getRoutes().filter((route) => {
+			if( isRedirect ){
+				return route == hashPart;
+			} else {
 				if(route.endsWith('*')){
-					return this.isTheSameAstRoute(route, hashPart);
-				} else if(route == hashPart){
-					return route;
+					return (this.isTheSameAstRoute(route, hashPart));
+				} else {
+					return route == hashPart;
 				}
-			});
-			foundRoutes.forEach((route) => {
-				if('matched' in this.routes[route]){
+			}
+		});
+		foundRoutes.forEach((route) => {
+			if('matched' in this.routes[route]){
+				if( !isRedirect ){
 					this.routes[route].view = this.view.bind(this, this.routes[route]);
-					this.routes[route].matched.call(this.routes[route], this.getResponseObject(queryObject, hashPartArr));
+					this.routes[route].matched.call(this.routes[route], this.getResponseObject({queryObject, hashPartArr, hashPart}));
 				} else {
-					throw new Error('walkify expected hook "matched" not found!')
+					this.routes[route].view = this.view.bind(this, this.routes[route], { data : redirectData, redirect : true});
+					this.routes[route].matched.call(this.routes[route], this.getResponseObject({queryObject, hashPartArr, hashPart, redirect : true}));
 				}
-			});
-			this.currentRoute = this.routes[hashPart];			
-		} else {
-			let foundRoute = this.findRoute(hashPart);
-			if(hashPart && foundRoute){
-				let keyArr = hashPart.split('/');
-				let routeArr = (foundRoute.closeRoute ? foundRoute.closeRoute.split('/') : foundRoute.split('/'));
-				let isTheSame;
-				if((routeArr.indexOf('*') != -1)){
-					isTheSame = this.isTheSameAstRoute(routeArr.join('/'), hashPart);
-				} else {
-					isTheSame = this.compare(routeArr, keyArr);
-				}
-				if(isTheSame){
-					let foundRoutes = foundRoute.routes ? foundRoute.routes : [foundRoute.closeRoute];
-					foundRoutes.forEach((route) => {
-						let matchedObj = this.routes[route];
-						if('matched' in matchedObj){
-							let newObj = this.buildObj(route.split('/'), keyArr);
+				
+			} else {
+				throw new Error('walkify expected hook "matched" not found!')
+			}
+		});
+		if( !isRedirect ) {
+			this.currentRoute = this.routes[hashPart];
+		}
+	}
+	checkDynamicRoute(isRedirect, redirectData){
+		let [queryObject, hashPartArr, hashPart] = Object.values(this.getRouteObject());
+		let foundRoute = this.findRoute(hashPart, isRedirect);
+		if(hashPart && foundRoute){
+			let keyArr = hashPart.split('/');
+			let routeArr = (foundRoute.closeRoute ? foundRoute.closeRoute.split('/') : foundRoute.split('/'));
+			let isTheSame;
+			if((routeArr.indexOf('*') != -1)){
+				isTheSame = this.isTheSameAstRoute(routeArr.join('/'), hashPart);
+			} else {
+				isTheSame = this.compare(routeArr, keyArr);
+			}
+			if(isTheSame){
+				let foundRoutes = foundRoute.routes ? foundRoute.routes : [foundRoute.closeRoute];
+				foundRoutes.forEach((route) => {
+					let matchedObj = this.routes[route];
+					if('matched' in matchedObj){
+						let newObj = this.buildObj(route.split('/'), keyArr);
+						if( !isRedirect ){
 							this.routes[route].view = this.view.bind(this, this.routes[route]);
-							this.routes[route].matched.apply(this.routes[route], [this.getResponseObject(queryObject, hashPartArr), ...Object.values(newObj)]);
+							this.routes[route].matched.apply(this.routes[route], [this.getResponseObject({queryObject, hashPartArr, hashPart}), ...Object.values(newObj)]);
 						} else {
-							throw new Error('walkify expected hook "matched" not found!');
+							this.routes[route].view = this.view.bind(this, this.routes[route], { data : redirectData, redirect : true});
+							this.routes[route].matched.apply(this.routes[route], [this.getResponseObject({queryObject, hashPartArr, hashPart, redirect : true}), ...Object.values(newObj)]);
 						}
-					});
+						
+					} else {
+						throw new Error('walkify expected hook "matched" not found!');
+					}
+				});
+				if( !isRedirect ){
 					this.currentRoute = this.routes[foundRoute.closeRoute];
 					return this;
 				}
 			}
-			if('!' in this.routes){
-				if('matched' in this.routes['!']){
-					this.routes['!'].view = this.view.bind(this, this.routes['!']);
-					this.routes['!'].matched.apply(this.routes['!']);
-					this.currentRoute = this.routes['!'];
-				} else {
-					throw new Error('walkify expected hook "matched" not found!')
-				}
+		}
+		!isRedirect && this.routeTo404(queryObject, hashPartArr, hashPart);
+	}
+	routeTo404(queryObject, hashPartArr, hashPart){
+		if('!' in this.routes){
+			if('matched' in this.routes['!']){
+				this.routes['!'].view = this.view.bind(this, this.routes['!']);
+				this.routes['!'].matched.apply(this.routes['!'], [this.getResponseObject({queryObject, hashPartArr, hashPart})]);
+				this.currentRoute = this.routes['!'];
+			} else {
+				throw new Error('walkify expected hook "matched" not found!')
 			}
+		}
+	}
+	route(options){
+		let hashPart = this.getRouteObject().hashPart;
+		if(this.routes.hasOwnProperty(hashPart)){
+			this.checkNormalRoute();
+		} else {
+			this.checkDynamicRoute();
 	    }
         return this;
 	}
@@ -180,7 +317,8 @@ class Walkify {
 		let slicedHashStr = slicedHash.join('/');
 		let slicedCloseRoute = routeArr.slice(0, -1);
 		let isDynamicMatch = /{(.+?):(.+?)}/.test(route);
-		return isDynamicMatch ? this.compare(slicedCloseRoute, slicedHash) : slicedCloseRoute.join('/') == slicedHashStr;
+		
+		return isDynamicMatch ? this.compare(slicedCloseRoute, slicedHash) : (astIndex > 0 ? slicedCloseRoute.join('/') == slicedHashStr : route == hashPart);
 	}
 
 	compare(routesArr, hashArr){
@@ -201,7 +339,7 @@ class Walkify {
 					}
 				});
 				b = b.every((el) => {
-					return el == true;
+					return el === true;
 				});
 				return b;
 
@@ -239,13 +377,21 @@ class Walkify {
 			}));
 			let closeRoute = matchCountArr.filter((route) => {
 				return (matchCountObj[route]['count'] == Highestcount);
-			})[0];
+			});
+			//routes with asteriks has higher priority
+			closeRoute = closeRoute.length > 1 ? closeRoute.filter((route) => {
+				return route.indexOf('*') != -1;
+			})[0] || closeRoute[0] : closeRoute[0];
+
 			let closeRouteArr = closeRoute.split('/');
 			let isDynamicMatch = /{(.+?):(.+?)}/.test(closeRoute);
 			if(closeRoute.indexOf('*') == -1){
-				if(closeRouteArr.length == Highestcount) return {closeRoute};
+				if((closeRouteArr.length == Highestcount) && closeRoute == hashArr.join('')) return {closeRoute};
 			}
 			if(closeRoute.indexOf('*') != -1){
+				matchCountArr = matchCountArr.filter((route) => {
+					return this.isTheSameAstRoute(route, hashArr.join('/'));
+				});
 				return {closeRoute, routes : matchCountArr};
 			}
 			if(isDynamicMatch){
@@ -253,20 +399,24 @@ class Walkify {
 			}	
 		}
 	}
-	findRoute(urlHash){
-		let routes = this.routes;
+	findRoute(urlHash, isRedirect){
 		let hashArr = urlHash.split('/');
-		let routesArr = Object.keys(routes);
+		let routesArr = this.getRoutes();
 		let routesWithSameLength = routesArr.filter((route) => {
-			return (((route.split('/').length == hashArr.length) && !!hashArr[hashArr.length - 1]) || (route.endsWith('*') && this.isTheSameAstRoute(route, urlHash)));
+			if( !isRedirect ){
+				return (((route.split('/').length == hashArr.length) && !!hashArr[hashArr.length - 1]) || (route.endsWith('*') && this.isTheSameAstRoute(route, urlHash)));
+			} else {
+				return (((route.split('/').length == hashArr.length) && !!hashArr[hashArr.length - 1]));
+			}
 		});
 		let routesWithAsteriks = routesArr.filter((route) => {
 			return route.endsWith('*') && this.isTheSameAstRoute(route, urlHash);
 		});
+		
 		if( routesWithSameLength.length ){
 			return this.closestRoute(routesWithSameLength, hashArr);
 		} else {
-			return this.closestRoute(routesWithAsteriks, hashArr);
+			if( !isRedirect ) return this.closestRoute(routesWithAsteriks, hashArr);
 		}
 	}
 	buildObj(routeArr, hashArr){
@@ -309,12 +459,20 @@ class Walkify {
 					}
 				}, this);
 			}
-			'mounted' in viewObj && viewObj.mounted();
-			this.setLinksHandler();
+			if( !data.redirect ){
+				try {
+					'mounted' in viewObj && viewObj.mounted();
+				} catch(e){
+					console.error(e);
+				}
+			} 
 		} else {
 			this.mountView(data, temp);
-			'mounted' in viewObj && viewObj.mounted();
-			this.setLinksHandler();
+			try {
+				'mounted' in viewObj && viewObj.mounted();
+			} catch(e){
+				console.error(e);
+			}
 		}
 	}
 	mountView(data, template){
@@ -335,20 +493,21 @@ class Walkify {
 					return typeof evalExpression == 'object' ? JSON.stringify(evalExpression) : evalExpression;
 				} catch (e) {
 					console.error(e);
-					return undefined;
+					return '';
 				}
 			} else {
 				try {
 					return (eval(key));
 				} catch (e) {
 					if(!hasCharLeft) console.error('property : "' + key + '" not defined');
-					return hasCharLeft ? matched : undefined
+					return hasCharLeft ? matched : ''
 				}
 			}
 		});
 		this.viewElem.innerHTML = template;
 		//force dom redraw/update
 		this.redrawRoot();
+		this.setLinksHandler();
 	}
 
 	//methods to resolve external library conflict
