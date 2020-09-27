@@ -58,6 +58,7 @@ class Walkify {
 			try {
 				let newUrl = new URL(linkHref);
 				isSameOrigin = newUrl.origin == location.origin;
+
 			} catch (e){
 				isSameOrigin = !(/^((http|https|ftp):\/\/)*(www\.)*(.+?)\.[a-y]{2,}$/ig.test(linkHref));
 			}
@@ -66,9 +67,17 @@ class Walkify {
 			let hasExternalRel = link.hasAttribute('rel') ? link.getAttribute('rel').toLowerCase() == 'external' : false;
 
 			let isExternalLink = hasDownloadAttr || hasTargetAttr || hasExternalRel || !isSameOrigin;
-
+			
 			if(link.hasAttribute('href') && !isExternalLink){
 				link.addEventListener('click', (event) => {
+				if(/^((http|https|ftp):\/\/)(.+?)$/.test(linkHref)){
+					try {
+						let url = new URL(linkHref);
+						linkHref = url.hash;
+					} catch(e){
+						location.href = linkHref;
+					}
+				}
 				linkHref = linkHref.startsWith('#') ? linkHref : '#' + linkHref;
 					event.preventDefault();
 					if(location.hash != linkHref ){
