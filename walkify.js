@@ -60,7 +60,7 @@ class Walkify {
 				isSameOrigin = newUrl.origin == location.origin;
 
 			} catch (e){
-				isSameOrigin = !(/^((http|https|ftp):\/\/)*(www\.)*(.+?)\.[a-y]{2,}$/ig.test(linkHref));
+				isSameOrigin = !(/^((http|https|ftp):\/\/)*(www\.)*(.+?)\.[a-z]{2,}$/ig.test(linkHref));
 			}
 			let hasDownloadAttr = link.hasAttribute('download');
 			let hasTargetAttr = link.hasAttribute('target');
@@ -70,6 +70,7 @@ class Walkify {
 			
 			if(link.hasAttribute('href') && !isExternalLink){
 				link.addEventListener('click', (event) => {
+					event.preventDefault();
 				if(/^((http|https|ftp):\/\/)(.+?)$/.test(linkHref)){
 					try {
 						let url = new URL(linkHref);
@@ -79,16 +80,15 @@ class Walkify {
 					}
 				}
 				linkHref = linkHref.startsWith('#') ? linkHref : '#' + linkHref;
-					event.preventDefault();
 					if(location.hash != linkHref ){
 						'exist' in this.currentRoute && this.currentRoute.exist();
 						this.routeTo(linkHref);
 					}
 				})
-			} else {
+			} else if(link.hasAttribute('href') && !!link.getAttribute('href')) {
 				link.addEventListener('click', (event) => {
 					event.preventDefault();
-					if( !(/^((http|https|ftp):\/\/)(.+?)\.[a-y]{2,}$/ig.test(linkHref)) ){
+					if( !(/^((http|https|ftp):\/\/)(.+?)\.[a-z]{2,}$/ig.test(linkHref)) ){
 						try{
 							location.href = 'http://' + linkHref;
 						} catch(e){
@@ -96,7 +96,8 @@ class Walkify {
 							this.routeTo(linkHref);
 						}
 						return;
-					} 
+					}
+					alert('endxone');
 					location.href = linkHref;
 				})
 			}
@@ -142,7 +143,8 @@ class Walkify {
 	routeTo(url){
 		this.setPreviousHash();
 		location.hash = url;
-		return this;
+		// alert();
+		// return this;
 	}
 	setPreviousHash(){
 		let history = sessionStorage.appHistoryObj ? JSON.parse(sessionStorage.appHistoryObj).history : [];
