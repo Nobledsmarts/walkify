@@ -58,7 +58,6 @@ class Walkify {
 			try {
 				let newUrl = new URL(linkHref);
 				isSameOrigin = newUrl.origin == location.origin;
-
 			} catch (e){
 				isSameOrigin = !(/^((http|https|ftp):\/\/)*(www\.)*(.+?)\.[a-z]{2,}$/ig.test(linkHref));
 			}
@@ -71,15 +70,15 @@ class Walkify {
 			if(link.hasAttribute('href') && !isExternalLink){
 				link.addEventListener('click', (event) => {
 					event.preventDefault();
-				if(/^((http|https|ftp):\/\/)(.+?)$/.test(linkHref)){
-					try {
-						let url = new URL(linkHref);
-						linkHref = url.hash;
-					} catch(e){
-						location.href = linkHref;
+					if(/^((http|https|ftp):\/\/)(.+?)$/.test(linkHref)){
+						try {
+							let url = new URL(linkHref);
+							linkHref = url.hash;
+						} catch(e){
+							location.href = linkHref;
+						}
 					}
-				}
-				linkHref = linkHref.startsWith('#') ? linkHref : '#' + linkHref;
+					linkHref = linkHref.startsWith('#') ? linkHref : '#' + linkHref;
 					if(location.hash != linkHref ){
 						'exist' in this.currentRoute && this.currentRoute.exist();
 						this.routeTo(linkHref);
@@ -97,13 +96,11 @@ class Walkify {
 						}
 						return;
 					}
-					alert('endxone');
 					location.href = linkHref;
 				})
 			}
 		});
 	}
-	
 	getAppHistoryObj(){
 		return sessionStorage.appHistoryObj ? JSON.parse(sessionStorage.appHistoryObj) : {
 			history : [],
@@ -143,8 +140,6 @@ class Walkify {
 	routeTo(url){
 		this.setPreviousHash();
 		location.hash = url;
-		// alert();
-		// return this;
 	}
 	setPreviousHash(){
 		let history = sessionStorage.appHistoryObj ? JSON.parse(sessionStorage.appHistoryObj).history : [];
@@ -182,7 +177,6 @@ class Walkify {
 		this.setMutationObserver();
 		return this
 	}
-
 	extractUrlQuery(url){
 		url = url ? url : this.getHash();
 		let queryPart = url.split('?')[1];
@@ -198,7 +192,6 @@ class Walkify {
 	getPreviousHash(){
 		return this.previousHash;
 	}
-
 	getResponseObject(optionsObj){
 		let from = this.getPreviousHash();
 		return  {
@@ -287,7 +280,6 @@ class Walkify {
 							this.routes[route].view = this.view.bind(this, this.routes[route], { data : redirectData, redirect : true});
 							this.routes[route].matched.apply(this.routes[route], [this.getResponseObject({queryObject, hashPartArr, hashPart, redirect : true}), ...Object.values(newObj)]);
 						}
-						
 					} else {
 						throw new Error('walkify expected hook "matched" not found!');
 					}
@@ -331,7 +323,6 @@ class Walkify {
 		
 		return isDynamicMatch ? this.compare(slicedCloseRoute, slicedHash) : (astIndex > 0 ? slicedCloseRoute.join('/') == slicedHashStr : route == hashPart);
 	}
-
 	compare(routesArr, hashArr){
 		if(hashArr.length == routesArr.length){
 			if(routesArr.indexOf('*') == -1){
@@ -353,7 +344,6 @@ class Walkify {
 					return el === true;
 				});
 				return b;
-
 			} else {
 				// return (hashArr.join('').startsWith(routesArr.join('').slice(0, -1)));
 			}			
@@ -361,7 +351,6 @@ class Walkify {
 			return (hashArr.join('').startsWith(routesArr.join('').slice(0, -1)));
 		}
 	}
-
 	//returns the closest matched registered route
 	closestRoute(routesArr, hashArr){
 		let matchCountObj = {};
@@ -423,7 +412,6 @@ class Walkify {
 		let routesWithAsteriks = routesArr.filter((route) => {
 			return route.endsWith('*') && this.isTheSameAstRoute(route, urlHash);
 		});
-		
 		if( routesWithSameLength.length ){
 			return this.closestRoute(routesWithSameLength, hashArr);
 		} else {
@@ -487,6 +475,7 @@ class Walkify {
 		}
 	}
 	mountView(data, template){
+		if (typeof template == 'object') throw new Error(template);
 		let hasNoPrefix = this.noVariablePrefix;
 		template = (typeof template != 'string') ? template.innerHTML : template;
 		
