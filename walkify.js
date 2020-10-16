@@ -221,12 +221,8 @@ class Walkify {
 			hashPart
 		}
 	}
-	checkNormalRoute(isRedirect, redirectData){
-		let routeObject = this.getRouteObject();
-		let hashPart = routeObject.hashPart;
-		let queryObject = routeObject.queryObject;
-		let hashPartArr = routeObject.hashPartArr;
-		let foundRoutes = this.getRoutes().filter((route) => {
+	foundRoutes(hashPart, isRedirect){
+		return this.getRoutes().filter((route) => {
 			if( isRedirect ){
 				return route == hashPart;
 			} else {
@@ -237,6 +233,13 @@ class Walkify {
 				}
 			}
 		});
+	}
+	checkNormalRoute(isRedirect, redirectData){
+		let routeObject = this.getRouteObject();
+		let hashPart = routeObject.hashPart;
+		let queryObject = routeObject.queryObject;
+		let hashPartArr = routeObject.hashPartArr;
+		let foundRoutes = this.foundRoutes(hashPart, isRedirect);
 		foundRoutes.forEach((route) => {
 			if('matched' in this.routes[route]){
 				if( !isRedirect ){
@@ -362,7 +365,10 @@ class Walkify {
 			let currentRouteArr = route.split('/');
 
 			for(let i = 0; i < currentRouteArr.length; i++){
-				if((currentRouteArr[i]) && hashArr[i] == currentRouteArr[i]){
+				let regex = /{(.+?):(.+?)}/;
+				let currentRoute = regex.test(currentRouteArr[i]) ? regex.exec(currentRouteArr[i])[2] : currentRouteArr[i];
+				let regex1 = new RegExp('^' + currentRoute + '$');
+				if((currentRoute) && regex1.test(hashArr[i])){
 					matchCountObj[route]['count'] += 1;
 					continue;
 				}
@@ -450,11 +456,11 @@ class Walkify {
 			let templates = [... document.getElementsByTagName('template')];
 			if( !this.hasTemplate(templates, viewObj) && !data.redirect) throw new Error('template not found for current page');
 			if(data.redirect && temp2){
-				this.mountView(data.redirect ? (data.data || temp)  : data, temp2);
+				this.render(data.redirect ? (data.data || (temp || {}))  : data, temp2);
 			} else {
 				templates.forEach((template) => {
 					if(template.getAttribute('for') == viewObj.name){
-						this.mountView(data.redirect ? (data.data || temp) : data, template);
+						this.render(data.redirect ? (data.data || temp) : data, template.innerHTML);
 					}
 				}, this);
 			}
@@ -466,7 +472,7 @@ class Walkify {
 				}
 			} 
 		} else {
-			this.mountView(data, temp);
+			this.render(data, temp);
 			try {
 				'mounted' in viewObj && viewObj.mounted();
 			} catch(e){
@@ -474,10 +480,11 @@ class Walkify {
 			}
 		}
 	}
-	mountView(data, template){
-		if (typeof template == 'object') throw new Error(template);
+	render(data, template, targetEl){
+		let inValid = JSON.stringify(template) == '{}' || typeof template == 'Object';
+		if ( inValid ) throw new Error('template is not a valid string');
+
 		let hasNoPrefix = this.noVariablePrefix;
-		template = (typeof template != 'string') ? template.innerHTML : template;
 		
 		let regex = '[' + (hasNoPrefix ? this.supportedPrefix.join('|') : this.variablePrefix) +']' + (hasNoPrefix ? '*' : '+') + '?' + ((this.variableBracketsStart) + '+') + '(.+?)' + ((this.variableBracketsEnd) + '+');
 
@@ -504,12 +511,21 @@ class Walkify {
 				}
 			}
 		});
-		this.viewElem.innerHTML = template;
+		if( !targetEl ) this.viewElem.innerHTML = template;
+		this.renderExternal(targetEl, template);
+		
 		//force dom redraw/update
 		this.redrawRoot();
 		this.setLinksHandler();
 	}
-
+	renderExternal(targetEl, template){
+		let targets = [... document.querySelectorAll(targetEl)];
+		if( targets.length ){
+			targets.forEach((target) => {
+				target.innerHTML = template;
+			});
+		}
+	}
 	//methods to resolve external library conflict
 	//changes the default '$' to the argument passed
 
@@ -537,7 +553,7 @@ class Walkify {
 		}
 	}
 	typeof(variable){
-		return (variable).constructor.name;
+		return !!variable ? (variable).constructor.name : (typeof variable);
 	}
 	redrawRoot(){
 		let root = document.querySelector(this.viewSelector);
