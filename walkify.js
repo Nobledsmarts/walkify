@@ -1,7 +1,7 @@
 /*
- * walkify.js
- * (c) Richard franklin C [Noble Desmarts]
- * august 2020
+ * @name walkify.js
+ * @author (c) Richard franklin C [Noble Desmarts]
+ * @month august 2020
 */
 class Walkify {
 	constructor(routesObj, viewElem){
@@ -13,19 +13,40 @@ class Walkify {
 		this.variableBracketsEnd = '}}';
 		this.variablePrefix = "\\$";
 		this.previousHash = '';
+		this.options = this.getDefaultOptions();
 		!!viewElem && this.mount(viewElem);
+	}
+	getDefaultOptions(){
+		return {
+			historyMode : false
+		}
+	}
+	setOptions(options){
+		let defaultOptions = this.getDefaultOptions();
+		this.options = {
+			...defaultOptions,
+			...options
+		};
+		return this;
 	}
 	init(){
 		window.onload = () => {
-			this.navigate({
-				loadtype : 'onload'
-			});
-        }
-		window.onhashchange = () => {
-			this.navigate({
-				loadtype : 'hashchange'
-			});
+			console.log('load');
+			this.loadtype = 'onload';
+			this.navigate()
 		}
+		if(!this.getHistoryMode()) {
+			window.onhashchange = () => {
+				this.loadtype = 'hashchange';
+				this.navigate();
+			}
+		} else {
+			window.onpopstate = (e) => {
+				this.loadtype = 'popstate';
+				this.navigate();
+			}
+		}
+		return this;
 	}
 	 setMutationObserver(){
 		let body = document.querySelector('body');
@@ -48,8 +69,8 @@ class Walkify {
 		}
 		this.observer = new MutationObserver(callback);
 		this.observer.observe(body, config);
+		return this;
 	 }
-	
 	setLinksHandler(link){
 		let links = link ? [link] : [... document.getElementsByTagName('a')];
 		links.forEach((link) => {
@@ -78,28 +99,21 @@ class Walkify {
 							location.href = linkHref;
 						}
 					}
-					linkHref = linkHref.startsWith('#') ? linkHref : '#' + linkHref;
-					if(location.hash != linkHref ){
+					let historyMode = this.getHistoryMode();
+					if(!historyMode){
+						linkHref = linkHref.startsWith('#') ? linkHref : '#' + linkHref;
+					} else {
+						linkHref = linkHref.startsWith('#') ? linkHref.slice(1) : linkHref;
+					}
+					let condition = !historyMode ? '#' + this.getHash() != linkHref : this.getHash() != linkHref;
+					if(condition){
 						'exist' in this.currentRoute && this.currentRoute.exist();
 						this.routeTo(linkHref);
 					}
 				})
-			} else if(link.hasAttribute('href') && !!link.getAttribute('href')) {
-				link.addEventListener('click', (event) => {
-					event.preventDefault();
-					if( !(/^((http|https|ftp):\/\/)(.+?)\.[a-z]{2,}$/ig.test(linkHref)) ){
-						try{
-							location.href = 'http://' + linkHref;
-						} catch(e){
-							'exist' in this.currentRoute && this.currentRoute.exist();
-							this.routeTo(linkHref);
-						}
-						return;
-					}
-					location.href = linkHref;
-				})
 			}
 		});
+		return this;
 	}
 	getAppHistoryObj(){
 		return sessionStorage.appHistoryObj ? JSON.parse(sessionStorage.appHistoryObj) : {
@@ -108,38 +122,72 @@ class Walkify {
 			length : 0
 		};
 	}
-	navigate(options){
+	pushToSession(){
+		let appHistory = this.getAppHistoryObj().history;
+		appHistory.push(this.getHash());
+		sessionStorage.appHistoryObj = JSON.stringify({
+			history : appHistory,
+			current : appHistory.length - 1,
+			length : appHistory.length - 1
+		});
+		return this;
+	}
+	setSession(){
+		if(! sessionStorage.appHistoryObj ){
+			sessionStorage.appHistoryObj = JSON.stringify({
+				history : [this.getHash()],
+				current : 1,
+				length : 1
+			});
+		}
+		return this;
+	}
+	navigate(){
 		if(this.getHash()){
-			if(options.loadtype == 'hashchange'){
-				let appHistory = this.getAppHistoryObj().history;
-				appHistory.push(this.getHash());
-				sessionStorage.appHistoryObj = JSON.stringify({
-					history : appHistory,
-					current : appHistory.length - 1,
-					length : appHistory.length - 1
-				});
+			if(this.loadtype == 'hashchange'){
+				this.pushToSession();
+			}
+			else if(this.loadtype == 'popstate'){
+				'exist' in this.currentRoute && this.currentRoute.exist();
+				this.pushToSession();
 			} else {
-				if(! sessionStorage.appHistoryObj ){
-					sessionStorage.appHistoryObj = JSON.stringify({
-						history : [this.getHash()],
-						current : 1,
-						length : 1
-					});
-				}
+				this.setSession();
 			}
 			this.setPreviousHash();
-			this.route(options);
+			this.route();
 		} else {
 			this.routeTo('/');
 		}
+		return this;
 	}
 	getHash(url){
-		let urlhash = url ? '#' + url.split('#')[1] : location.hash;
-	    return urlhash.slice(1) ? urlhash.slice(1) : '';
+		let historyMode = this.getHistoryMode();
+		if( !historyMode ){
+			let urlhash = url ? '#' + url.split('#')[1] : location.hash;
+			return urlhash.slice(1) ? urlhash.slice(1) : '';
+		}
+		return /(index.html|index.php)/.test(location.pathname) ? '/' : location.pathname;
 	}
-	routeTo(url){
+	routeTo(url, state = {}){
+		this.state = state;
+		let historyMode = this.getHistoryMode();
+		let response = this.currentResponseObject();
+		if(response.url.to == url) return;
+		
+		if(this.currentRoute && 'exist' in this.currentRoute) this.currentRoute.exist();
+	
+		if(!historyMode) {
+			location.hash = url;
+		}
+		else{
+			history.pushState({}, '', url);
+			this.route(state);
+		}
 		this.setPreviousHash();
-		location.hash = url;
+		return this;
+	}
+	getHistoryMode(){
+		return this.options.historyMode;
 	}
 	setPreviousHash(){
 		let history = sessionStorage.appHistoryObj ? JSON.parse(sessionStorage.appHistoryObj).history : [];
@@ -148,6 +196,7 @@ class Walkify {
 		} else {
 			this.previousHash = history.slice(-2)[0];
 		}
+		return this;
 	}
 	redirectTo(url, redirectData){
 		let [, , hashPart] = Object.values(this.getRouteObject(url));
@@ -158,11 +207,11 @@ class Walkify {
 				this.checkDynamicRoute(true, redirectData);
 			}
 		}
+		return this;
 	}
 	getRoutes(){
 		return Object.keys(this.routes);
 	}
-
 	//mount to root element
 	mount(viewElem){
 		let rootElem = document.querySelector(viewElem);
@@ -195,7 +244,9 @@ class Walkify {
 	getResponseObject(optionsObj){
 		let from = this.getPreviousHash();
 		return  {
+			state : this.state || {},
 			params : optionsObj.queryObject,
+			loadtype : this.loadtype,
 			url : {
 				to : optionsObj.hashPartArr[0],
 				from,
@@ -206,10 +257,11 @@ class Walkify {
 	}
 	currentResponseObject(){
 		let [queryObject, hashPartArr, hashPart] = Object.values(this.getRouteObject());
-		return getResponseObject({queryObject, hashPartArr, hashPart});
+		return this.getResponseObject({queryObject, hashPartArr, hashPart});
 	}
 	getRouteObject(url){
-		let hashUrl = url ? url.toLowerCase() : this.getHash().toLocaleLowerCase();
+		let historyMode = this.getHistoryMode();
+		let hashUrl = !historyMode ? (url ? url.toLowerCase() : this.getHash().toLocaleLowerCase()) : location.pathname + location.search;
 		let urlHasQuery = hashUrl.indexOf('?') != -1;
 		let queryObject = this.extractUrlQuery(hashUrl);
 		let hashPartArr = hashUrl.split('#');
@@ -305,9 +357,11 @@ class Walkify {
 				throw new Error('walkify expected hook "matched" not found!')
 			}
 		}
+		return this;
 	}
-	route(options){
+	route(state){
 		let hashPart = this.getRouteObject().hashPart;
+		if(state && this.state != state) this.state = state; 
 		if(this.routes.hasOwnProperty(hashPart)){
 			this.checkNormalRoute();
 		} else {
@@ -450,7 +504,7 @@ class Walkify {
 	}
 	view(viewObj, data = {}, temp, temp2){
 		data = data || {};
-		if(this.typeof(data) != 'Object') throw new Error('invalid data type passed, first parameter of view method must be an object');
+		if(this.typeof(data) != 'object') throw new Error('invalid data type passed, first parameter of view method must be an object');
 		if(!temp || data.redirect){
 			if(!('name' in viewObj) && !data.redirect) throw new Error('property "name" missing in route object');
 			let templates = [... document.getElementsByTagName('template')];
@@ -511,18 +565,21 @@ class Walkify {
 				}
 			}
 		});
-		if( !targetEl ) this.viewElem.innerHTML = template;
-		this.renderExternal(targetEl, template);
-		
+		if( !targetEl ){
+			this.viewElem.innerHTML = template;
+		} else {
+			this.renderExternal(targetEl, template);
+		}
 		//force dom redraw/update
 		this.redrawRoot();
 		this.setLinksHandler();
+		return this;
 	}
 	renderExternal(targetEl, template){
 		let targets = [... document.querySelectorAll(targetEl)];
 		if( targets.length ){
 			targets.forEach((target) => {
-				target.innerHTML = template;
+				target.textContent = template;
 			});
 		}
 	}
@@ -538,27 +595,30 @@ class Walkify {
 			this.noVariablePrefix = true;
 		}
 		this.variablePrefix = '\\' + variablePrefix;
+		return this;
 	}
 	//changes the default curly braces '{{' and '}}'
 	setVariableBrackets(brackets){
-		if(this.typeof(brackets) != 'Array'){
+		if(this.typeof(brackets) != 'array'){
 			throw new Error('parameter for setVariableBrackets method must be of the type Array')
 		} else if(brackets.length > 2){
 			throw new Error('array should not be greater than two');
-		} else if(this.typeof(brackets[0]) != 'String' || this.typeof(brackets[0]) != 'String'){
+		} else if(this.typeof(brackets[0]) != 'string' || this.typeof(brackets[1]) != 'string'){
 			throw new Error('character types in the array must be string')
 		} else {
 			this.variableBracketsStart = brackets[0];
 			this.variableBracketsEnd = brackets[1];
 		}
+		return this;
 	}
 	typeof(variable){
-		return !!variable ? (variable).constructor.name : (typeof variable);
+		return !!variable ? ((variable).constructor.name).toLowerCase() : (typeof variable);
 	}
 	redrawRoot(){
 		let root = document.querySelector(this.viewSelector);
 		if( ! (root.innerHTML == this.viewElem.innerHTML) ){
 			root.innerHTML = this.viewElem.innerHTML;
 		}
+		return this;
 	}
 }
